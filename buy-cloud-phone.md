@@ -2,7 +2,7 @@
 
 ## Endpoint
 ```http
-POST /api/buy-cloud-phone
+POST https://meows.io.vn/api/buy-cloud-phone
 ```
 
 ## Description
