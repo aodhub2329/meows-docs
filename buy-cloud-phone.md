@@ -6,7 +6,7 @@ POST https://meows.io.vn/api/buy-cloud-phone
 ```
 
 ## Description
-Mua máy chủ ảo (cloud phone) từ các dịch vụ được hỗ trợ. API này xử lý mua máy theo hàng đợi với nhiều tài khoản và retry logic.
+Mua máy chủ ảo (cloud phone) từ các dịch vụ free. API này xử lý mua máy theo hàng đợi.
 
 ## Rate Limiting
 - Endpoint này được bảo vệ bởi middleware `buyphonelitmit`
