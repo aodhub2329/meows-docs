@@ -1,97 +1,152 @@
-# API Documentation: Buy Cloud Phone
+# Tài liệu API BuyCloudPhone
 
-## Endpoint
+> **Base URL:** `https://meows.vn`  
+> **Phiên bản:** 1.0.0  
+> **Cập nhật lần cuối:** 23-03-2026
+
+## Tổng quan
+
+Tài liệu này mô tả các endpoint API cho tính năng **BuyCloudPhone** trên [meows.vn](https://meows.vn). Dịch vụ BuyCloudPhone cho phép người dùng mua điện thoại cloud từ nhiều nhà cung cấp bao gồm Vsphone, Ugphone, Vmos và LD Cloud.
+
+---
+
+## Mục lục
+
+1. [Xác thực](#xác-thực)
+2. [API Trạng thái Hệ thống](#api-trạng-thái-hệ-thống)
+3. [API Mua Cloud Phone](#api-mua-cloud-phone)
+4. [API Trạng thái Task](#api-trạng-thái-task)
+5. [API Lịch sử](#api-lịch-sử)
+6. [Mô hình Dữ liệu](#mô-hình-dữ-liệu)
+7. [Mã lỗi](#mã-lỗi)
+8. [Định dạng Tài khoản](#định-dạng-tài-khoản)
+
+---
+
+## Xác thực
+
+Hầu hết các endpoint yêu cầu xác thực qua cookie. Hệ thống sử dụng middleware sau:
+
+- **`checkUserCookie`**: Xác thực phiên người dùng qua cookie `.COOKIESECURITY`
+
+### Yêu cầu Cookie
+
+| Tên Cookie | Mục đích | Bắt buộc |
+|------------|----------|----------|
+| `.COOKIESECURITY` | Token xác thực người dùng | Có (cho các endpoint được bảo vệ) |
+
+---
+
+## API Trạng thái Hệ thống
+
+### GET /api/status
+
+Lấy trạng thái hiện tại của các dịch vụ hệ thống.
+
+#### Request
+
 ```http
-POST https://meows.io.vn/api/buy-cloud-phone
+GET /api/status
+Host: meows.vn
 ```
 
-## Description
-Mua máy chủ ảo (cloud phone) từ các dịch vụ free. API này xử lý mua máy theo hàng đợi.
+#### Response
 
-## Rate Limiting
-- Endpoint này được bảo vệ bởi middleware `buyphonelitmit`
-- Kiểm tra rate limit trước khi xử lý request
-
-## Request
-
-### Headers
 ```json
 {
-  "Content-Type": "application/json"
+  "auto_buyphone": {
+    "status": "Online" | "Offline"
+  },
+  "website": {
+    "status": "Online" | "Offline"
+  }
 }
 ```
 
-### Request Body
+#### Ví dụ
+
+```bash
+curl -X GET https://meows.vn/api/status
+```
+
+#### Response Ví dụ
+
 ```json
 {
-  "service": "Vsphone|Ugphone",
-  "region": "Hong Kong|Singapore|Japan|Germany|America", // Chỉ cần cho Ugphone
+  "auto_buyphone": {
+    "status": "Online"
+  },
+  "website": {
+    "status": "Online"
+  }
+}
+```
+
+---
+
+## API Mua Cloud Phone
+
+### POST /api/buy-cloud-phone
+
+Gửi một task mua cloud phone vào hàng đợi. Đây là endpoint **được bảo vệ** yêu cầu xác thực.
+
+#### Request
+
+```http
+POST /api/buy-cloud-phone
+Host: meows.vn
+Content-Type: application/json
+Cookie: .COOKIESECURITY=<user_token>
+```
+
+#### Request Body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|--------|------|----------|-------|
+| `service` | string | Có | Tên dịch vụ cloud phone (`Vsphone`, `Ugphone`, `Vmos`, `LD Cloud`) |
+| `accounts` | array | Có | Mảng các object tài khoản (xem Định dạng Tài khoản bên dưới) |
+| `region` | string | Không | Khu vực cho dịch vụ Ugphone (`Hong Kong`, `Singapore`, `Japan`, `Germany`, `America`) |
+
+#### Định dạng Tài khoản theo Dịch vụ
+
+**Cho Vsphone/Vmos:**
+```json
+{
   "accounts": [
-    // Cho Vsphone
     {
-      "token": "string",
-      "userId": "string"
-    },
-    // Hoặc cho Ugphone  
-    {
-      "cookie": "string"
+      "account": "user@example.com",
+      "password": "password123"
     }
   ]
 }
 ```
 
-### Parameters
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `service` | string | Dịch vụ mua máy. Giá trị: `"Vsphone"` hoặc `"Ugphone"` |
-| `region` | string  | Khu vực máy chủ. **Bắt buộc với Ugphone**, bỏ qua với Vsphone |
-| `accounts` | array  | Danh sách tài khoản để thử mua |
-
-#### Account Structure
-
-**Vsphone Account:**
+**Cho Ugphone/LD Cloud:**
 ```json
 {
-  "token": "an6Duq7yrsHVVZFgNcx6GWjAV8vErFsd",
-  "userId": "1744880"
+  "accounts": [
+    {
+      "cookie": "raw_cookie_string_or_fetch_atob_script"
+    }
+  ],
+  "region": "Singapore"
 }
 ```
 
-**Ugphone Account:**
-```json
-{
-  "cookie": "session_data_or_json_string"
-}
-```
+#### Response
 
-### Supported Regions (Ugphone only)
-- `Hong Kong` 🇭🇰
-- `Singapore` 🇸🇬
-- `Japan` 🇯🇵  
-- `Germany` 🇩🇪
-- `America` 🇺🇸
-
-## Response
-
-### Success Response (200 OK)
 ```json
 {
   "success": true,
-  "message": "ĐÃ MUA ĐƯỢC MÁY !!!",
-  "amount_id": "12345",
-  "service": "Vsphone",
-  "region": "Hong Kong", // Chỉ có với Ugphone
-  "tried": 3,
-  "accountUsed": 2,
-  "retryUsed": 1,
-  "totalResults": 3,
-  "proxy": ["proxy1", "proxy2"],
-  "queuePosition": 1
+  "taskId": "string",
+  "historyId": "string",
+  "queuePosition": number,
+  "message": "Task đã được thêm vào queue"
 }
 ```
 
-### Error Response (400 Bad Request)
+#### Response Lỗi
+
 ```json
 {
   "success": false,
@@ -99,173 +154,341 @@ Mua máy chủ ảo (cloud phone) từ các dịch vụ free. API này xử lý 
 }
 ```
 
-### Error Response (500 Internal Server Error)
 ```json
 {
   "success": false,
-  "error": "Lỗi server không xác định",
-  "message": "Connection timeout"
+  "error": "Service không hỗ trợ: InvalidService"
 }
 ```
 
-## Response Fields
+```json
+{
+  "success": false,
+  "error": "Thiếu tài khoản cho Vsphone."
+}
+```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `success` | boolean | Trạng thái thành công/thất bại |
-| `message` | string | Thông báo kết quả |
-| `amount_id` | string | ID của máy đã mua (chỉ khi thành công) |
-| `service` | string | Dịch vụ đã sử dụng |
-| `region` | string | Khu vực máy chủ (chỉ Ugphone) |
-| `tried` | number | Tổng số lần thử |
-| `accountUsed` | number | Thứ tự tài khoản thành công |
-| `retryUsed` | number | Số lần retry với tài khoản thành công |
-| `totalResults` | number | Số kết quả trả về từ API gốc |
-| `proxy` | array | Danh sách proxy đã sử dụng |
-| `queuePosition` | number | Vị trí trong hàng đợi |
-| `error` | string | Mô tả lỗi (chỉ khi thất bại) |
+#### Ví dụ
 
-## Examples
-
-### Example 1: Mua Vsphone
 ```bash
-curl -X POST http://your-domain.com/api/buy-cloud-phone \
+curl -X POST https://meows.vn/api/buy-cloud-phone \
   -H "Content-Type: application/json" \
+  -b ".COOKIESECURITY=your_token" \
   -d '{
     "service": "Vsphone",
     "accounts": [
       {
-        "token": "an6Duq7yrsHVVZFgNcx6GWjAV8vErFsd",
-        "userId": "1744880"
-      },
-      {
-        "token": "another_token_here",
-        "userId": "1234567"
+        "account": "user@example.com",
+        "password": "password123"
       }
     ]
   }'
 ```
 
-**Response:**
+---
+
+## API Trạng thái Task
+
+### GET /api/buy-cloud-phone/status/:taskId
+
+Kiểm tra trạng thái của một task mua. Endpoint này **không** yêu cầu xác thực.
+
+#### Request
+
+```http
+GET /api/buy-cloud-phone/status/:taskId
+Host: meows.vn
+```
+
+#### URL Parameters
+
+| Parameter | Kiểu | Mô tả |
+|-----------|------|-------|
+| `taskId` | string | Task ID được trả về từ API submit |
+
+#### Response
+
 ```json
 {
   "success": true,
-  "message": "ĐÃ MUA ĐƯỢC MÁY !!!",
-  "amount_id": "VS12345",
-  "service": "Vsphone",
-  "accountUsed": 1,
+  "status": "pending" | "processing" | "completed" | "failed",
+  "result": {
+    // Dữ liệu kết quả mua
+  },
+  "error": "error message if failed",
+  "historyId": "string",
+  "service": "string",
+  "createdAt": "ISO8601 timestamp",
+  "completedAt": "ISO8601 timestamp or null"
 }
 ```
 
-### Example 2: Mua Ugphone
-```bash
-curl -X POST http://your-domain.com/api/buy-cloud-phone \
-  -H "Content-Type: application/json" \
-  -d '{
-    "service": "Ugphone", 
-    "region": "Singapore",
-    "accounts": [
-      {
-        "cookie": "{\"session\":\"abc123\",\"user\":\"test\"}"
-      }
-    ]
-  }'
-```
+#### Response Lỗi
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "ĐÃ MUA ĐƯỢC MÁY !!!",
-  "amount_id": "UG67890",
-  "service": "Ugphone",
-  "region": "Singapore", 
-  "accountUsed": 1,
-}
-```
-
-### Example 3: Error - Missing Service
-```bash
-curl -X POST http://your-domain.com/api/buy-cloud-phone \
-  -H "Content-Type: application/json" \
-  -d '{
-    "accounts": [{"token": "test", "userId": "123"}]
-  }'
-```
-
-**Response (400):**
 ```json
 {
   "success": false,
-  "error": "Thiếu trường service."
+  "error": "Task không tồn tại",
+  "taskId": "string"
 }
 ```
 
-## Error Codes
+#### Ví dụ
 
-| HTTP Code | Error | Description |
-|-----------|-------|-------------|
-| 400 | `Thiếu trường service.` | Không có field service trong request |
-| 400 | `Service không hỗ trợ: {service}` | Service không phải Vsphone/Ugphone |
-| 400 | `Thiếu tài khoản cho {service}.` | Array accounts rỗng hoặc null |
-| 400 | `Tài khoản {i} thiếu token hoặc userId cho Vsphone.` | Account Vsphone thiếu thông tin |
-| 400 | `Tài khoản {i} thiếu cookie cho Ugphone.` | Account Ugphone thiếu cookie |
-| 500 | `Lỗi server không xác định` | Lỗi trong quá trình xử lý |
+```bash
+curl -X GET https://meows.vn/api/buy-cloud-phone/status/abc123xyz
+```
 
-## Queue System
+#### Response Ví dụ
 
-API sử dụng hệ thống hàng đợi (queue) để xử lý các yêu cầu:
+```json
+{
+  "success": true,
+  "status": "completed",
+  "result": {
+    "success": true,
+    "orderId": "ORDER123",
+    "message": "Purchase successful"
+  },
+  "historyId": "hist_abc123",
+  "service": "Vsphone",
+  "createdAt": "2026-03-23T12:00:00.000Z",
+  "completedAt": "2026-03-23T12:00:05.000Z"
+}
+```
 
-- **Concurrent threads:** 3 threads xử lý đồng thời
-- **Queue position:** Trả về vị trí trong hàng đợi
-- **FIFO processing:** Xử lý theo thứ tự vào trước ra trước
+---
 
-## Retry Logic
+## API Lịch sử
 
-### Per Account Retry
-- **Vsphone:** Tối đa 2 lần retry/account
-- **Ugphone:** Tối đa 2 lần retry/account  
-- **BBcloud:** Tối đa 4 lần retry/account
+### GET /api/buy-cloud-phone/history
 
-### Account Fallback
-- Thử tuần tự từng account cho đến khi thành công
-- Nếu account 1 thất bại → chuyển sang account 2
-- Nếu tất cả accounts thất bại → trả về lỗi
+Lấy lịch sử mua hàng cho người dùng đã xác thực. Đây là endpoint **được bảo vệ** yêu cầu xác thực.
 
-### Smart Error Handling
-- Lỗi region/hết máy → skip retry, chuyển account tiếp
-- Lỗi account/auth → retry với cùng account
-- Timeout → retry với delay
+#### Request
 
-## Implementation Notes
+```http
+GET /api/buy-cloud-phone/history?limit=50
+Host: meows.vn
+Cookie: .COOKIESECURITY=<user_token>
+```
 
-1. **Validation Order:**
-   - Service validation
-   - Accounts validation  
-   - Account structure validation
+#### Query Parameters
 
-2. **Processing Flow:**
-   ```
-   Request → Validation → Queue → Thread Pool → Retry Logic → Response
-   ```
+| Parameter | Kiểu | Mặc định | Mô tả |
+|-----------|------|----------|-------|
+| `limit` | number | 50 | Số lượng tối đa các mục lịch sử cần trả về |
 
-3. **Thread Safety:** 
-   - Queue được shared giữa các threads
-   - Thread status tracking tránh race conditions
+#### Response
 
-4. **Memory Management:**
-   - Không sử dụng localStorage/sessionStorage
-   - State được lưu trong memory during session
+```json
+{
+  "success": true,
+  "history": [
+    {
+      "id": "string",
+      "cloudName": "Vsphone" | "Ugphone" | "Vmos" | "LD Cloud",
+      "account": "string",
+      "password": "string",
+      "region": "string" | null,
+      "status": "pending" | "processing" | "success" | "failed",
+      "amountId": "string" | null,
+      "orderId": "string" | null,
+      "message": "string",
+      "timestamp": "ISO8601 timestamp",
+      "createdAt": "ISO8601 timestamp",
+      "updatedAt": "ISO8601 timestamp"
+    }
+  ]
+}
+```
 
-## Rate Limiting Recommendations
+#### Ví dụ
 
-- Implement proper rate limiting để tránh spam
-- Monitor queue length để tránh memory issues
-- Set timeout reasonable cho các external API calls
+```bash
+curl -X GET "https://meows.vn/api/buy-cloud-phone/history?limit=10" \
+  -b ".COOKIESECURITY=your_token"
+```
 
-## Security Considerations  
+---
 
-- Validate và sanitize tất cả input
-- Không log sensitive data (tokens, cookies)  
-- Implement proper error handling để tránh information disclosure
-- Consider implementing authentication/authorization
+### DELETE /api/buy-cloud-phone/history/:id
+
+Xóa một mục lịch sử cụ thể. Đây là endpoint **được bảo vệ** yêu cầu xác thực.
+
+#### Request
+
+```http
+DELETE /api/buy-cloud-phone/history/:id
+Host: meows.vn
+Cookie: .COOKIESECURITY=<user_token>
+```
+
+#### URL Parameters
+
+| Parameter | Kiểu | Mô tả |
+|-----------|------|-------|
+| `id` | string | ID của mục lịch sử cần xóa |
+
+#### Response
+
+```json
+{
+  "success": true,
+  "history": [
+    // Các mục lịch sử còn lại
+  ]
+}
+```
+
+#### Response Lỗi
+
+```json
+{
+  "success": false,
+  "error": "Unauthorized",
+  "message": "Bạn cần đăng nhập để xóa lịch sử"
+}
+```
+
+#### Ví dụ
+
+```bash
+curl -X DELETE https://meows.vn/api/buy-cloud-phone/history/hist_abc123 \
+  -b ".COOKIESECURITY=your_token"
+```
+
+---
+
+### DELETE /api/buy-cloud-phone/history
+
+Xóa toàn bộ lịch sử mua hàng cho người dùng đã xác thực. Đây là endpoint **được bảo vệ** yêu cầu xác thực.
+
+#### Request
+
+```http
+DELETE /api/buy-cloud-phone/history
+Host: meows.vn
+Cookie: .COOKIESECURITY=<user_token>
+```
+
+#### Response
+
+```json
+{
+  "success": true,
+  "message": "History đã được xóa"
+}
+```
+
+#### Ví dụ
+
+```bash
+curl -X DELETE https://meows.vn/api/buy-cloud-phone/history \
+  -b ".COOKIESECURITY=your_token"
+```
+
+---
+
+## Mô hình Dữ liệu
+
+### Trạng thái Task
+
+| Trạng thái | Mô tả |
+|------------|-------|
+| `pending` | Task đang chờ trong hàng đợi |
+| `processing` | Task đang được xử lý |
+| `completed` | Task hoàn thành thành công |
+| `failed` | Task thất bại |
+
+### Trạng thái Lịch sử
+
+| Trạng thái | Mô tả |
+|------------|-------|
+| `pending` | Đang chờ xử lý |
+| `processing` | Đang được xử lý |
+| `success` | Mua hàng thành công |
+| `failed` | Mua hàng thất bại |
+
+### Loại Dịch vụ
+
+| Dịch vụ | Mô tả | Loại Tài khoản |
+|---------|-------|----------------|
+| `Vsphone` | Dịch vụ cloud phone cao cấp | Email + Mật khẩu |
+| `Ugphone` | Cloud phone đa khu vực | Cookie |
+| `Vmos` | Nền tảng hệ điều hành di động ảo | Email + Mật khẩu |
+| `LD Cloud` | Dịch vụ LD Cloud phone | Cookie |
+
+### Mã Khu vực (cho Ugphone)
+
+| Khu vực | Mã |
+|---------|-----|
+| Hồng Kông | `Hong Kong` |
+| Singapore | `Singapore` |
+| Nhật Bản | `Japan` |
+| Đức | `Germany` |
+| Mỹ | `America` |
+
+---
+
+## Mã lỗi
+
+| Mã lỗi | Thông báo | Mô tả |
+|--------|-----------|-------|
+| 400 | `Thiếu trường service.` | Thiếu trường service |
+| 400 | `Service không hỗ trợ: {service}` | Tên service không hợp lệ |
+| 400 | `Thiếu tài khoản cho {service}.` | Thiếu dữ liệu tài khoản |
+| 400 | `Tài khoản {n} thiếu account hoặc password cho {service}.` | Định dạng tài khoản không hợp lệ |
+| 400 | `Tài khoản {n} thiếu cookie cho {service}.` | Thiếu cookie cho dịch vụ dựa trên cookie |
+| 400 | `Tài khoản {n} cookie lỗi: {error}` | Định dạng cookie không hợp lệ |
+| 401 | `Unauthorized` | Chưa xác thực |
+| 401 | `Bạn cần đăng nhập để xem lịch sử` | Yêu cầu đăng nhập |
+| 404 | `Task không tồn tại` | Task ID không tìm thấy |
+| 500 | `Lỗi server không xác định` | Lỗi server nội bộ |
+
+---
+
+## Định dạng Tài khoản
+
+### Vsphone / Vmos
+
+Chấp nhận các định dạng sau:
+
+```
+# Định dạng 1: email+password
+user@example.com+password123
+
+# Định dạng 2: email|password
+user@example.com|password123
+
+# Định dạng 3: username+password
+myuser+password123
+
+# Định dạng 4: username|password
+myuser|password123
+```
+
+### Ugphone / LD Cloud
+
+Yêu cầu chuỗi cookie thô hoặc script fetch với mã hóa atob:
+
+```
+# Cookie thô
+cookie_raw_string_here
+
+# Hoặc script fetch atob
+fetch(atob('aHR0cHM6Ly9...')).then(res => res.text()).then(eval)
+```
+
+---
+
+## Giới hạn tốc độ
+
+- Hiện tại không có giới hạn tốc độ nào được áp dụng cho các endpoint này
+- Việc kiểm tra trạng thái task nên được thực hiện với khoảng thời gian phù hợp (khuyến nghị: 1-2 giây)
+
+---
+
+## Hỗ trợ
+
+Nếu có vấn đề hoặc câu hỏi, vui lòng liên hệ với đội phát triển.
